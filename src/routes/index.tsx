@@ -24,6 +24,15 @@ const GAMES: Game[] = [
     available: true,
     accent: 'from-purple-500 to-indigo-500',
   },
+  {
+    slug: 'scattergories',
+    title: 'Scattergories',
+    emoji: '📝',
+    tagline: 'Roll a letter, then name something in each category — before the timer runs out!',
+    to: '/scattergories',
+    available: true,
+    accent: 'from-teal-500 to-cyan-500',
+  },
 ]
 
 function Home() {
