@@ -33,6 +33,15 @@ const GAMES: Game[] = [
     available: true,
     accent: 'from-teal-500 to-cyan-500',
   },
+  {
+    slug: 'chess-quest',
+    title: 'Chess Quest',
+    emoji: '♛',
+    tagline: 'Explore Chessland with friendly pieces, tiny puzzles, stars and stickers.',
+    to: '/chess-quest',
+    available: true,
+    accent: 'from-amber-400 to-rose-400',
+  },
 ]
 
 function Home() {
