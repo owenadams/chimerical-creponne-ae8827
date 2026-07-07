@@ -643,7 +643,7 @@ function ChessBoard({
   onSelectSquare: (square: number) => void
 }) {
   return (
-    <div className="mx-auto grid aspect-square w-full max-w-[34rem] grid-cols-8 overflow-hidden rounded-[1.5rem] border-8 border-amber-900/70 bg-amber-900/70 shadow-2xl">
+    <div className="mx-auto grid aspect-square w-full max-w-[34rem] grid-cols-[repeat(8,minmax(0,1fr))] grid-rows-[repeat(8,minmax(0,1fr))] overflow-hidden rounded-[1.5rem] border-8 border-amber-900/70 bg-amber-900/70 shadow-2xl">
       {Array.from({ length: 64 }).map((_, square) => {
         const isLight = (Math.floor(square / 8) + square) % 2 === 0
         const isTarget = area.board.targets.includes(square)
@@ -656,17 +656,17 @@ function ChessBoard({
             key={square}
             type="button"
             onClick={() => onSelectSquare(square)}
-            className={`relative grid place-items-center text-lg font-black transition ${
+            className={`relative grid h-full min-h-0 w-full min-w-0 place-items-center text-lg font-black transition ${
               isLight ? 'bg-[#ffe7a8]' : 'bg-[#83c67a]'
             } ${isTarget ? 'after:absolute after:inset-2 after:rounded-2xl after:border-4 after:border-white/80' : ''} ${
               isSelected ? 'scale-95 brightness-110' : ''
             }`}
           >
             {isTarget && <span className="absolute h-4 w-4 rounded-full bg-white/90 chess-quest-pulse" />}
-            {isObstacle && <span className="text-2xl">◆</span>}
-            {isTreat && <span className="text-2xl">{area.id === 'knight' ? '✦' : area.id === 'king' ? '♛' : '●'}</span>}
+            {isObstacle && <span className="text-[clamp(1rem,4vw,1.5rem)]">◆</span>}
+            {isTreat && <span className="text-[clamp(1rem,4vw,1.5rem)]">{area.id === 'knight' ? '✦' : area.id === 'king' ? '♛' : '●'}</span>}
             {isPiece && (
-              <span className="relative z-10 grid h-11 w-11 place-items-center rounded-full bg-white text-2xl text-amber-950 shadow-lg sm:h-14 sm:w-14 sm:text-3xl chess-quest-bob">
+              <span className="relative z-10 grid h-[70%] max-h-14 w-[70%] max-w-14 place-items-center rounded-full bg-white text-[clamp(1.25rem,5vw,1.875rem)] text-amber-950 shadow-lg chess-quest-bob">
                 {area.board.piece}
               </span>
             )}
