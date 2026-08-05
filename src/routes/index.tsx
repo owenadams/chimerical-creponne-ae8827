@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { getOwnerAccess } from '@/server/owner-auth.functions'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -36,6 +38,36 @@ const GAMES: Game[] = [
 ]
 
 function Home() {
+  const [ownerStatus, setOwnerStatus] = useState<'checking' | 'locked' | 'unlocked'>('checking')
+
+  useEffect(() => {
+    let active = true
+
+    getOwnerAccess()
+      .then((result) => {
+        if (!active) return
+        setOwnerStatus(result.authenticated ? 'unlocked' : 'locked')
+      })
+      .catch(() => {
+        if (!active) return
+        setOwnerStatus('locked')
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const ownerStatusClass =
+    ownerStatus === 'unlocked'
+      ? 'text-emerald-200 bg-emerald-500/15 border-emerald-300/40'
+      : ownerStatus === 'locked'
+        ? 'text-amber-200 bg-amber-500/15 border-amber-300/40'
+        : 'text-slate-200 bg-slate-500/15 border-slate-300/40'
+
+  const ownerStatusLabel =
+    ownerStatus === 'unlocked' ? 'Unlocked' : ownerStatus === 'locked' ? 'Locked' : 'Checking'
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-900 flex flex-col items-center p-4 py-12 sm:py-20">
       <div className="w-full max-w-2xl">
@@ -83,6 +115,30 @@ function Home() {
             ),
           )}
         </div>
+
+        {/* Private tools */}
+        <section className="mt-8 bg-white/8 backdrop-blur-sm rounded-2xl border border-white/15 p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Gmail Assistant</h2>
+            <span
+              className={`text-xs font-semibold uppercase tracking-wide border rounded-full px-3 py-1 ${ownerStatusClass}`}
+            >
+              {ownerStatusLabel}
+            </span>
+          </div>
+
+          <p className="text-white/70 text-sm sm:text-base mb-5">
+            Your personal assistant area for inbox workflows and automations.
+          </p>
+
+          <Link
+            to="/gmail-assistant"
+            className="group inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-950/40 hover:brightness-110 transition-all"
+          >
+            Open Gmail Assistant
+            <span className="group-hover:translate-x-0.5 transition-transform" aria-hidden="true">→</span>
+          </Link>
+        </section>
 
         <p className="text-center text-white/30 text-xs mt-12">
           More games on the way.

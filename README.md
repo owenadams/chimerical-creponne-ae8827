@@ -35,4 +35,9 @@ netlify dev   # starts dev server at http://localhost:8888
 
 ## Environment Variables
 
-No API keys required. Netlify Blobs is provisioned automatically on Netlify.
+No API keys are required for the games. Netlify Blobs is provisioned automatically on Netlify.
+
+For the private Gmail Assistant section, configure:
+
+- `OWNER_SECTION_PASSWORD`: Password used on `/owner-login`
+- `OWNER_SESSION_SECRET`: Extra secret used to sign the auth cookie (set this to a long random string)
