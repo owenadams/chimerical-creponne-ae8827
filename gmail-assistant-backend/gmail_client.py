@@ -8,6 +8,10 @@ from google.auth.transport.requests import Request as GoogleRequest, AuthorizedS
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow, InstalledAppFlow
 
+# Google can return a scope superset for accounts with previously granted app
+# permissions. This prevents oauthlib from raising "Scope has changed" errors.
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
+
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.labels",
@@ -151,7 +155,6 @@ class GmailClient:
         flow = self._build_flow()
         auth_url, state = flow.authorization_url(
             access_type="offline",
-            include_granted_scopes="true",
             prompt="consent",
         )
         self._save_oauth_state(state, self._extract_code_verifier(flow))
