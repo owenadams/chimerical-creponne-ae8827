@@ -29,6 +29,24 @@ class GmailClient:
         self.redirect_uri = redirect_uri
         self.oauth_state_path = f"{token_path}.oauth_state"
 
+    def _extract_code_verifier(self, flow: Flow) -> str | None:
+        verifier = getattr(flow, "code_verifier", None)
+        if isinstance(verifier, str) and verifier:
+            return verifier
+
+        oauth_client = getattr(getattr(flow, "oauth2session", None), "_client", None)
+        verifier = getattr(oauth_client, "code_verifier", None)
+        if isinstance(verifier, str) and verifier:
+            return verifier
+
+        return None
+
+    def _apply_code_verifier(self, flow: Flow, code_verifier: str) -> None:
+        flow.code_verifier = code_verifier
+        oauth_client = getattr(getattr(flow, "oauth2session", None), "_client", None)
+        if oauth_client is not None:
+            oauth_client.code_verifier = code_verifier
+
     # ------------------------------------------------------------------ #
     #  Auth                                                                #
     # ------------------------------------------------------------------ #
@@ -136,7 +154,7 @@ class GmailClient:
             include_granted_scopes="true",
             prompt="consent",
         )
-        self._save_oauth_state(state, getattr(flow, "code_verifier", None))
+        self._save_oauth_state(state, self._extract_code_verifier(flow))
         return {"auth_url": auth_url, "state": state}
 
     def complete_auth(self, code: str, state: str) -> None:
@@ -147,7 +165,7 @@ class GmailClient:
         flow = self._build_flow(state=state)
         code_verifier = oauth_state.get("code_verifier")
         if isinstance(code_verifier, str) and code_verifier:
-            flow.code_verifier = code_verifier
+            self._apply_code_verifier(flow, code_verifier)
         flow.fetch_token(code=code)
         creds = flow.credentials
         Path(self.token_path).write_text(creds.to_json(), encoding="utf-8")
