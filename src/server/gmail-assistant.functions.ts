@@ -43,7 +43,10 @@ export const getGmailAuthStatus = createServerFn({ method: 'GET' }).handler(asyn
 })
 
 export const connectGmailAuth = createServerFn({ method: 'POST' }).handler(async () => {
-  return callAssistant('/api/auth/connect', { method: 'POST' }) as Promise<{ status: string }>
+  return callAssistant('/api/auth/connect', { method: 'POST' }) as Promise<{
+    status: string
+    auth_url?: string
+  }>
 })
 
 export const getGmailLabels = createServerFn({ method: 'GET' }).handler(async () => {

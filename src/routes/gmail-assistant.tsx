@@ -34,6 +34,19 @@ function GmailAssistantPage() {
 
   useEffect(() => {
     let active = true
+    const search = new URLSearchParams(window.location.search)
+    const oauthStatus = search.get('gmailAuth')
+    const oauthReason = search.get('reason')
+
+    if (oauthStatus) {
+      const nextUrl = new URL(window.location.href)
+      nextUrl.searchParams.delete('gmailAuth')
+      nextUrl.searchParams.delete('reason')
+      window.history.replaceState({}, '', nextUrl.toString())
+      if (oauthStatus === 'error') {
+        setError(oauthReason || 'Gmail OAuth failed')
+      }
+    }
 
     async function boot() {
       try {
@@ -80,7 +93,11 @@ function GmailAssistantPage() {
   async function handleConnectGmail() {
     setError('')
     try {
-      await connectGmailAuth()
+      const result = await connectGmailAuth()
+      if (result.auth_url) {
+        window.location.href = result.auth_url
+        return
+      }
       setAssistantAuthenticated(true)
       const [labelsRes, suggestionsRes] = await Promise.all([getGmailLabels(), getGmailSuggestions()])
       setLabels(labelsRes.labels ?? [])
