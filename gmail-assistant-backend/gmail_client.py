@@ -101,15 +101,19 @@ class GmailClient:
         if not os.path.exists(self.token_path):
             return None
 
-        # If an old token was created with different scopes, Google libraries raise
-        # a scope-change error. Clear the stale token so hosted OAuth can re-auth.
+        # Load token without strict scope equality because Google can return a
+        # superset when include_granted_scopes is enabled.
         try:
-            creds = Credentials.from_authorized_user_file(self.token_path, SCOPES)
-        except ValueError as exc:
-            if "Scope has changed" in str(exc):
-                Path(self.token_path).unlink(missing_ok=True)
-                return None
-            raise
+            creds = Credentials.from_authorized_user_file(self.token_path)
+        except ValueError:
+            Path(self.token_path).unlink(missing_ok=True)
+            return None
+
+        granted_scopes = set(creds.scopes or [])
+        required_scopes = set(SCOPES)
+        if not required_scopes.issubset(granted_scopes):
+            Path(self.token_path).unlink(missing_ok=True)
+            return None
 
         if creds.expired and creds.refresh_token:
             creds.refresh(GoogleRequest())
