@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: gmail-assistant-api
+    runtime: python
+    rootDir: gmail-assistant-backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.10
+      - key: USE_OLLAMA_AI
+        value: "false"
+      - key: GMAIL_OAUTH_REDIRECT_URI
+        sync: false
+      - key: GMAIL_POST_AUTH_REDIRECT_URL
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET_JSON
+        sync: false
+
+disks:
+  - name: gmail-assistant-data
+    mountPath: /opt/render/project/src/gmail-assistant-backend/data
+    sizeGB: 1

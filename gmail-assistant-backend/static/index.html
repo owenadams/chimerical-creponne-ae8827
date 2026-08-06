@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a73e8" />
+  <title>Gmail Assistant</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+<header>
+  <h1>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="2" y="4" width="20" height="16" rx="2"/>
+      <path d="M2 8l10 7 10-7"/>
+    </svg>
+    Gmail Assistant
+  </h1>
+  <span id="stats"></span>
+</header>
+
+<!-- Auth screen -->
+<div id="auth-screen" style="display:none">
+  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="1.5">
+    <rect x="2" y="4" width="20" height="16" rx="2"/>
+    <path d="M2 8l10 7 10-7"/>
+  </svg>
+  <h2 style="font-size:20px; font-weight:500">Connect your Gmail</h2>
+  <p>Gmail Assistant will read your last 7 days of emails, suggest what to do with each one, and learn from your decisions.</p>
+  <button class="btn-primary" id="connect-btn">Connect Gmail</button>
+</div>
+
+<!-- Main screen -->
+<div id="main-screen" style="display:none">
+  <main>
+    <div id="controls">
+      <button class="btn-primary" id="process-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/>
+        </svg>
+        Analyse Emails
+      </button>
+      <label style="font-size:13px;color:var(--grey-600);display:flex;align-items:center;gap:6px;">
+        Max emails
+        <select id="max-emails-select" style="padding:5px 8px;border:1px solid var(--grey-200);border-radius:4px;font-size:13px;">
+          <option value="5" selected>5</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="progress-bar-wrap">
+      <div id="progress-bar"><div id="progress-fill"></div></div>
+    </div>
+
+    <div id="filters">
+      <button class="filter-chip active" data-filter="all">All</button>
+      <button class="filter-chip" data-filter="pending">Pending</button>
+      <button class="filter-chip" data-filter="accepted">Accepted</button>
+      <button class="filter-chip" data-filter="skipped">Skipped</button>
+    </div>
+
+    <div id="card-list"></div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
