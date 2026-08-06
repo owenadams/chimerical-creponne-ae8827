@@ -2,11 +2,12 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
 const DEFAULT_TIMEOUT_MS = 60_000
+const DEFAULT_ASSISTANT_API_BASE_URL = 'https://chimerical-creponne-ae8827.onrender.com/'
 
 function getAssistantBaseUrl(): string {
   const baseUrl = process.env.GMAIL_ASSISTANT_API_BASE_URL?.trim()
   if (!baseUrl) {
-    throw new Error('GMAIL_ASSISTANT_API_BASE_URL is not configured')
+    return DEFAULT_ASSISTANT_API_BASE_URL
   }
   return baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
 }
