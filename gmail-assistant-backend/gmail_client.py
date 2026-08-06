@@ -56,11 +56,15 @@ class GmailClient:
             redirect_uri=self.redirect_uri,
         )
 
-    def _save_oauth_state(self, state: str) -> None:
-        payload = {"state": state, "created_at": datetime.now(timezone.utc).timestamp()}
+    def _save_oauth_state(self, state: str, code_verifier: str | None) -> None:
+        payload = {
+            "state": state,
+            "code_verifier": code_verifier,
+            "created_at": datetime.now(timezone.utc).timestamp(),
+        }
         Path(self.oauth_state_path).write_text(json.dumps(payload), encoding="utf-8")
 
-    def _load_oauth_state(self) -> str | None:
+    def _load_oauth_state(self) -> dict | None:
         path = Path(self.oauth_state_path)
         if not path.exists():
             return None
@@ -78,7 +82,15 @@ class GmailClient:
         if age_seconds > 15 * 60:
             return None
 
-        return payload.get("state")
+        state = payload.get("state")
+        if not isinstance(state, str) or not state:
+            return None
+
+        code_verifier = payload.get("code_verifier")
+        if code_verifier is not None and not isinstance(code_verifier, str):
+            return None
+
+        return {"state": state, "code_verifier": code_verifier}
 
     def _clear_oauth_state(self) -> None:
         path = Path(self.oauth_state_path)
@@ -110,15 +122,18 @@ class GmailClient:
             include_granted_scopes="true",
             prompt="consent",
         )
-        self._save_oauth_state(state)
+        self._save_oauth_state(state, getattr(flow, "code_verifier", None))
         return {"auth_url": auth_url, "state": state}
 
     def complete_auth(self, code: str, state: str) -> None:
-        expected_state = self._load_oauth_state()
-        if not expected_state or state != expected_state:
+        oauth_state = self._load_oauth_state()
+        if not oauth_state or state != oauth_state["state"]:
             raise RuntimeError("Invalid or expired OAuth state")
 
         flow = self._build_flow(state=state)
+        code_verifier = oauth_state.get("code_verifier")
+        if isinstance(code_verifier, str) and code_verifier:
+            flow.code_verifier = code_verifier
         flow.fetch_token(code=code)
         creds = flow.credentials
         Path(self.token_path).write_text(creds.to_json(), encoding="utf-8")
