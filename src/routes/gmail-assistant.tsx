@@ -1,5 +1,13 @@
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  connectGmailAuth,
+  getGmailAuthStatus,
+  getGmailLabels,
+  getGmailSuggestions,
+  processGmailEmails,
+  submitGmailFeedback,
+} from '@/server/gmail-assistant.functions'
 import { getOwnerAccess, logoutOwner } from '@/server/owner-auth.functions'
 
 export const Route = createFileRoute('/gmail-assistant')({
@@ -15,6 +23,112 @@ export const Route = createFileRoute('/gmail-assistant')({
 function GmailAssistantPage() {
   const navigate = useNavigate()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [assistantAuthenticated, setAssistantAuthenticated] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const [busyById, setBusyById] = useState<Record<string, boolean>>({})
+  const [error, setError] = useState('')
+  const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'skipped'>('all')
+  const [labels, setLabels] = useState<Array<{ id: string; name: string }>>([])
+  const [suggestions, setSuggestions] = useState<Array<SuggestionItem>>([])
+
+  useEffect(() => {
+    let active = true
+
+    async function boot() {
+      try {
+        const auth = await getGmailAuthStatus()
+        if (!active) return
+        setAssistantAuthenticated(auth.authenticated)
+        if (auth.authenticated) {
+          const [labelsRes, suggestionsRes] = await Promise.all([
+            getGmailLabels(),
+            getGmailSuggestions(),
+          ])
+          if (!active) return
+          setLabels(labelsRes.labels ?? [])
+          setSuggestions((suggestionsRes.suggestions ?? []) as Array<SuggestionItem>)
+        }
+      } catch (err) {
+        if (!active) return
+        setError(err instanceof Error ? err.message : 'Failed to load Gmail assistant status')
+      } finally {
+        if (!active) return
+        setAuthLoading(false)
+      }
+    }
+
+    boot()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const counts = useMemo(() => {
+    const total = suggestions.length
+    const pending = suggestions.filter((item) => item.status === 'pending').length
+    const accepted = suggestions.filter((item) => item.status === 'accepted').length
+    const skipped = suggestions.filter((item) => item.status === 'skipped').length
+    return { total, pending, accepted, skipped }
+  }, [suggestions])
+
+  const filteredSuggestions = useMemo(() => {
+    if (filter === 'all') return suggestions
+    return suggestions.filter((item) => item.status === filter)
+  }, [filter, suggestions])
+
+  async function handleConnectGmail() {
+    setError('')
+    try {
+      await connectGmailAuth()
+      setAssistantAuthenticated(true)
+      const [labelsRes, suggestionsRes] = await Promise.all([getGmailLabels(), getGmailSuggestions()])
+      setLabels(labelsRes.labels ?? [])
+      setSuggestions((suggestionsRes.suggestions ?? []) as Array<SuggestionItem>)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gmail connect failed')
+    }
+  }
+
+  async function handleAnalyze() {
+    setProcessing(true)
+    setError('')
+    try {
+      const result = await processGmailEmails({ data: { days: 7, maxResults: 5 } })
+      setSuggestions((result.suggestions ?? []) as Array<SuggestionItem>)
+      const labelsRes = await getGmailLabels()
+      setLabels(labelsRes.labels ?? [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Email analysis failed')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  async function handleFeedback(item: SuggestionItem, accepted: boolean) {
+    const emailId = item.email_id
+    setBusyById((prev) => ({ ...prev, [emailId]: true }))
+    setError('')
+
+    try {
+      await submitGmailFeedback({
+        data: {
+          email_id: emailId,
+          accepted,
+          suggestion: item.suggestion,
+          email: item.email,
+        },
+      })
+
+      setSuggestions((prev) =>
+        prev.map((s) => (s.email_id === emailId ? { ...s, status: accepted ? 'accepted' : 'skipped' } : s)),
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save feedback')
+    } finally {
+      setBusyById((prev) => ({ ...prev, [emailId]: false }))
+    }
+  }
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -46,24 +160,128 @@ function GmailAssistantPage() {
             <div className="text-5xl mb-3">📬</div>
             <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">Gmail Assistant</h1>
             <p className="text-emerald-200 mt-2 text-sm sm:text-base">
-              Private owner workspace for reviewing, drafting, and organizing email tasks.
+              Private owner workspace connected to your separate Gmail Assistant backend.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {error && (
+            <p className="mb-4 rounded-lg border border-red-300/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+              {error}
+            </p>
+          )}
+
+          {authLoading ? (
+            <p className="text-white/70 text-sm">Checking Gmail backend connection…</p>
+          ) : !assistantAuthenticated ? (
             <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-              <h2 className="text-white font-semibold mb-1.5">Inbox Triage</h2>
-              <p className="text-white/65 text-sm">Surface priority messages and suggested next actions.</p>
+              <h2 className="text-white font-semibold mb-2">Connect Gmail Backend</h2>
+              <p className="text-white/65 text-sm mb-3">
+                Your owner login worked. Next, authenticate the Python Gmail assistant backend.
+              </p>
+              <button
+                onClick={handleConnectGmail}
+                className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-semibold px-4 py-2.5 rounded-lg transition-all"
+              >
+                Connect Gmail
+              </button>
             </div>
-            <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-              <h2 className="text-white font-semibold mb-1.5">Draft Support</h2>
-              <p className="text-white/65 text-sm">Create reply drafts quickly from short prompts.</p>
-            </div>
-            <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-              <h2 className="text-white font-semibold mb-1.5">Daily Workflow</h2>
-              <p className="text-white/65 text-sm">Track recurring follow-ups and summarize progress.</p>
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className="rounded-xl border border-white/15 bg-white/5 p-4 mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-white/80 text-sm">
+                    {counts.pending} pending · {counts.accepted} accepted · {counts.skipped} skipped
+                  </p>
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={processing}
+                    className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-all"
+                  >
+                    {processing ? 'Analyzing…' : 'Analyze Emails'}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {(['all', 'pending', 'accepted', 'skipped'] as const).map((value) => (
+                    <button
+                      key={value}
+                      onClick={() => setFilter(value)}
+                      className={`px-3 py-1.5 text-xs rounded-full border transition-all ${
+                        filter === value
+                          ? 'border-emerald-300/70 bg-emerald-400/20 text-emerald-100'
+                          : 'border-white/20 bg-white/5 text-white/70 hover:bg-white/10'
+                      }`}
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {filteredSuggestions.length === 0 ? (
+                  <div className="rounded-xl border border-white/15 bg-white/5 p-4 text-sm text-white/65">
+                    {counts.total === 0 ? 'No suggestions yet. Click Analyze Emails to begin.' : `No ${filter} items.`}
+                  </div>
+                ) : (
+                  filteredSuggestions.map((item) => {
+                    const isBusy = busyById[item.email_id]
+                    return (
+                      <article key={item.email_id} className="rounded-xl border border-white/15 bg-white/5 p-4">
+                        <p className="text-white text-sm font-semibold">{formatFrom(item.email.from)}</p>
+                        <p className="text-white/85 text-sm mt-0.5">{item.email.subject || '(no subject)'}</p>
+                        <p className="text-white/45 text-xs mt-0.5">{formatDate(item.email.date)}</p>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-cyan-400/15 border border-cyan-300/35 text-cyan-100 px-2.5 py-1 text-xs font-semibold">
+                            {item.suggestion.action.replace('_', ' ')}
+                          </span>
+                          {item.suggestion.add_label_ids.map((labelId) => {
+                            const label = labels.find((candidate) => candidate.id === labelId)
+                            return (
+                              <span
+                                key={`${item.email_id}-${labelId}`}
+                                className="rounded-full border border-white/20 bg-white/5 text-white/70 px-2.5 py-1 text-xs"
+                              >
+                                {label?.name ?? labelId}
+                              </span>
+                            )
+                          })}
+                        </div>
+
+                        <p className="text-white/70 text-sm mt-3">{item.suggestion.reason}</p>
+                        <p className="text-white/55 text-sm mt-2">{item.email.snippet}</p>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {item.status === 'pending' ? (
+                            <>
+                              <button
+                                onClick={() => handleFeedback(item, true)}
+                                disabled={isBusy}
+                                className="rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white px-3 py-1.5 text-sm font-semibold transition-colors"
+                              >
+                                {isBusy ? 'Saving…' : 'Accept'}
+                              </button>
+                              <button
+                                onClick={() => handleFeedback(item, false)}
+                                disabled={isBusy}
+                                className="rounded-lg border border-white/20 bg-white/10 hover:bg-white/15 disabled:opacity-60 text-white px-3 py-1.5 text-sm font-semibold transition-colors"
+                              >
+                                Skip
+                              </button>
+                            </>
+                          ) : (
+                            <span className="rounded-full border border-white/20 bg-white/10 text-white/75 px-3 py-1 text-xs uppercase tracking-wide">
+                              {item.status}
+                            </span>
+                          )}
+                        </div>
+                      </article>
+                    )
+                  })
+                )}
+              </div>
+            </>
+          )}
 
           <p className="text-white/45 text-xs mt-6">
             This area is password protected and intended for owner-only access.
@@ -72,4 +290,38 @@ function GmailAssistantPage() {
       </div>
     </div>
   )
+}
+
+interface SuggestionItem {
+  email_id: string
+  email: {
+    from: string
+    subject: string
+    date: string
+    snippet: string
+  }
+  suggestion: {
+    action: string
+    add_label_ids: Array<string>
+    new_label_name: string | null
+    reason: string
+  }
+  status: 'pending' | 'accepted' | 'skipped' | string
+}
+
+function formatFrom(from: string): string {
+  const match = from.match(/^"?([^"<]+)"?\s*</)
+  if (match?.[1]) return match[1].trim()
+  return from.replace(/<.*>/, '').trim() || from
+}
+
+function formatDate(date: string): string {
+  if (!date) return ''
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) return date
+  const now = new Date()
+  if (parsed.toDateString() === now.toDateString()) {
+    return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+  return parsed.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }

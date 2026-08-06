@@ -41,3 +41,4 @@ For the private Gmail Assistant section, configure:
 
 - `OWNER_SECTION_PASSWORD`: Password used on `/owner-login`
 - `OWNER_SESSION_SECRET`: Extra secret used to sign the auth cookie (set this to a long random string)
+- `GMAIL_ASSISTANT_API_BASE_URL`: Base URL of the deployed Python Gmail assistant API (for example `https://your-assistant-api.example.com`)
