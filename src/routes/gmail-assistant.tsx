@@ -31,6 +31,25 @@ function GmailAssistantPage() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'skipped'>('all')
   const [labels, setLabels] = useState<Array<{ id: string; name: string }>>([])
   const [suggestions, setSuggestions] = useState<Array<SuggestionItem>>([])
+  const [bootAttempt, setBootAttempt] = useState(0)
+
+  function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error(`${label} timed out. Please try again.`))
+      }, timeoutMs)
+
+      promise
+        .then((value) => {
+          clearTimeout(timeout)
+          resolve(value)
+        })
+        .catch((err) => {
+          clearTimeout(timeout)
+          reject(err)
+        })
+    })
+  }
 
   useEffect(() => {
     let active = true
@@ -50,14 +69,15 @@ function GmailAssistantPage() {
 
     async function boot() {
       try {
-        const auth = await getGmailAuthStatus()
+        const auth = await withTimeout(getGmailAuthStatus(), 20_000, 'Backend status check')
         if (!active) return
         setAssistantAuthenticated(auth.authenticated)
         if (auth.authenticated) {
-          const [labelsRes, suggestionsRes] = await Promise.all([
-            getGmailLabels(),
-            getGmailSuggestions(),
-          ])
+          const [labelsRes, suggestionsRes] = await withTimeout(
+            Promise.all([getGmailLabels(), getGmailSuggestions()]),
+            20_000,
+            'Gmail data load',
+          )
           if (!active) return
           setLabels(labelsRes.labels ?? [])
           setSuggestions((suggestionsRes.suggestions ?? []) as Array<SuggestionItem>)
@@ -75,7 +95,7 @@ function GmailAssistantPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [bootAttempt])
 
   const counts = useMemo(() => {
     const total = suggestions.length
@@ -195,12 +215,24 @@ function GmailAssistantPage() {
               <p className="text-white/65 text-sm mb-3">
                 Your owner login worked. Next, authenticate the Python Gmail assistant backend.
               </p>
-              <button
-                onClick={handleConnectGmail}
-                className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-semibold px-4 py-2.5 rounded-lg transition-all"
-              >
-                Connect Gmail
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleConnectGmail}
+                  className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-semibold px-4 py-2.5 rounded-lg transition-all"
+                >
+                  Connect Gmail
+                </button>
+                <button
+                  onClick={() => {
+                    setError('')
+                    setAuthLoading(true)
+                    setBootAttempt((value) => value + 1)
+                  }}
+                  className="border border-white/25 bg-white/10 hover:bg-white/15 text-white font-semibold px-4 py-2.5 rounded-lg transition-all"
+                >
+                  Retry Connection
+                </button>
+              </div>
             </div>
           ) : (
             <>
