@@ -21,6 +21,25 @@ export const Route = createFileRoute('/gmail-assistant')({
 })
 
 function GmailAssistantPage() {
+  const SYSTEM_LABEL_IDS = useMemo(
+    () =>
+      new Set([
+        'INBOX',
+        'SENT',
+        'TRASH',
+        'SPAM',
+        'STARRED',
+        'UNREAD',
+        'IMPORTANT',
+        'CATEGORY_PERSONAL',
+        'CATEGORY_SOCIAL',
+        'CATEGORY_PROMOTIONS',
+        'CATEGORY_UPDATES',
+        'CATEGORY_FORUMS',
+      ]),
+    [],
+  )
+
   const navigate = useNavigate()
   const [loggingOut, setLoggingOut] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
@@ -31,6 +50,8 @@ function GmailAssistantPage() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'skipped'>('all')
   const [labels, setLabels] = useState<Array<{ id: string; name: string }>>([])
   const [suggestions, setSuggestions] = useState<Array<SuggestionItem>>([])
+  const [editOpenById, setEditOpenById] = useState<Record<string, boolean>>({})
+  const [overridesById, setOverridesById] = useState<Record<string, SuggestionOverrideDraft>>({})
   const [bootAttempt, setBootAttempt] = useState(0)
 
   function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -110,6 +131,11 @@ function GmailAssistantPage() {
     return suggestions.filter((item) => item.status === filter)
   }, [filter, suggestions])
 
+  const editableLabels = useMemo(
+    () => labels.filter((label) => !SYSTEM_LABEL_IDS.has(label.id)),
+    [labels, SYSTEM_LABEL_IDS],
+  )
+
   async function handleConnectGmail() {
     setError('')
     try {
@@ -142,7 +168,59 @@ function GmailAssistantPage() {
     }
   }
 
-  async function handleFeedback(item: SuggestionItem, accepted: boolean) {
+  function ensureDraft(item: SuggestionItem) {
+    setOverridesById((prev) => {
+      if (prev[item.email_id]) return prev
+      return {
+        ...prev,
+        [item.email_id]: {
+          action: item.suggestion.action,
+          add_label_ids: [...(item.suggestion.add_label_ids ?? [])],
+          new_label_name: item.suggestion.new_label_name ?? '',
+        },
+      }
+    })
+  }
+
+  function toggleEdit(item: SuggestionItem) {
+    ensureDraft(item)
+    setEditOpenById((prev) => ({ ...prev, [item.email_id]: !prev[item.email_id] }))
+  }
+
+  function setDraftAction(emailId: string, action: SuggestionAction) {
+    setOverridesById((prev) => {
+      const current = prev[emailId]
+      if (!current) return prev
+      return { ...prev, [emailId]: { ...current, action } }
+    })
+  }
+
+  function setDraftNewLabel(emailId: string, newLabelName: string) {
+    setOverridesById((prev) => {
+      const current = prev[emailId]
+      if (!current) return prev
+      return { ...prev, [emailId]: { ...current, new_label_name: newLabelName } }
+    })
+  }
+
+  function toggleDraftLabel(emailId: string, labelId: string) {
+    setOverridesById((prev) => {
+      const current = prev[emailId]
+      if (!current) return prev
+      const exists = current.add_label_ids.includes(labelId)
+      return {
+        ...prev,
+        [emailId]: {
+          ...current,
+          add_label_ids: exists
+            ? current.add_label_ids.filter((id) => id !== labelId)
+            : [...current.add_label_ids, labelId],
+        },
+      }
+    })
+  }
+
+  async function handleFeedback(item: SuggestionItem, accepted: boolean, override?: SuggestionOverridePayload) {
     const emailId = item.email_id
     setBusyById((prev) => ({ ...prev, [emailId]: true }))
     setError('')
@@ -154,17 +232,50 @@ function GmailAssistantPage() {
           accepted,
           suggestion: item.suggestion,
           email: item.email,
+          override: override ?? null,
         },
       })
 
-      setSuggestions((prev) =>
-        prev.map((s) => (s.email_id === emailId ? { ...s, status: accepted ? 'accepted' : 'skipped' } : s)),
-      )
+      setSuggestions((prev) => {
+        return prev.map((s) => {
+          if (s.email_id !== emailId) return s
+          if (!accepted) return { ...s, status: 'skipped' }
+          if (!override) return { ...s, status: 'accepted' }
+          return {
+            ...s,
+            status: 'accepted',
+            suggestion: {
+              action: override.action,
+              add_label_ids: override.add_label_ids,
+              new_label_name: override.new_label_name,
+              reason: override.reason,
+            },
+          }
+        })
+      })
+
+      if (accepted) {
+        setEditOpenById((prev) => ({ ...prev, [emailId]: false }))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save feedback')
     } finally {
       setBusyById((prev) => ({ ...prev, [emailId]: false }))
     }
+  }
+
+  async function handleApplyOverride(item: SuggestionItem) {
+    const draft = overridesById[item.email_id]
+    if (!draft) return
+
+    const override: SuggestionOverridePayload = {
+      action: draft.action,
+      add_label_ids: [...new Set(draft.add_label_ids)],
+      new_label_name: draft.new_label_name.trim() || null,
+      reason: 'Manually edited by owner',
+    }
+
+    await handleFeedback(item, true, override)
   }
 
   async function handleLogout() {
@@ -311,6 +422,13 @@ function GmailAssistantPage() {
                                 {isBusy ? 'Saving…' : 'Accept'}
                               </button>
                               <button
+                                onClick={() => toggleEdit(item)}
+                                disabled={isBusy}
+                                className="rounded-lg border border-cyan-200/35 bg-cyan-500/10 hover:bg-cyan-500/20 disabled:opacity-60 text-cyan-100 px-3 py-1.5 text-sm font-semibold transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <button
                                 onClick={() => handleFeedback(item, false)}
                                 disabled={isBusy}
                                 className="rounded-lg border border-white/20 bg-white/10 hover:bg-white/15 disabled:opacity-60 text-white px-3 py-1.5 text-sm font-semibold transition-colors"
@@ -324,6 +442,76 @@ function GmailAssistantPage() {
                             </span>
                           )}
                         </div>
+
+                        {item.status === 'pending' && editOpenById[item.email_id] && overridesById[item.email_id] && (
+                          <div className="mt-4 rounded-lg border border-white/20 bg-black/10 p-3">
+                            <p className="text-white text-sm font-semibold mb-3">Edit suggestion</p>
+
+                            <div className="mb-3">
+                              <label className="text-white/75 text-xs mb-1.5 block">Action</label>
+                              <select
+                                value={overridesById[item.email_id].action}
+                                onChange={(event) => setDraftAction(item.email_id, event.target.value as SuggestionAction)}
+                                className="w-full rounded-md border border-white/20 bg-white/10 px-2.5 py-2 text-sm text-white"
+                              >
+                                <option value="keep">keep</option>
+                                <option value="archive">archive</option>
+                                <option value="delete">delete</option>
+                                <option value="mark_unread">mark unread</option>
+                              </select>
+                            </div>
+
+                            <div className="mb-3">
+                              <p className="text-white/75 text-xs mb-1.5">Labels</p>
+                              <div className="flex flex-wrap gap-2">
+                                {editableLabels.map((label) => {
+                                  const selected = overridesById[item.email_id].add_label_ids.includes(label.id)
+                                  return (
+                                    <button
+                                      key={`${item.email_id}-${label.id}`}
+                                      type="button"
+                                      onClick={() => toggleDraftLabel(item.email_id, label.id)}
+                                      className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                                        selected
+                                          ? 'border-emerald-300/60 bg-emerald-400/20 text-emerald-100'
+                                          : 'border-white/20 bg-white/5 text-white/70 hover:bg-white/10'
+                                      }`}
+                                    >
+                                      {label.name}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="mb-3">
+                              <label className="text-white/75 text-xs mb-1.5 block">New label name (optional)</label>
+                              <input
+                                value={overridesById[item.email_id].new_label_name}
+                                onChange={(event) => setDraftNewLabel(item.email_id, event.target.value)}
+                                placeholder="New label name"
+                                className="w-full rounded-md border border-white/20 bg-white/10 px-2.5 py-2 text-sm text-white placeholder:text-white/40"
+                              />
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => handleApplyOverride(item)}
+                                disabled={isBusy}
+                                className="rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 text-white px-3 py-1.5 text-sm font-semibold transition-colors"
+                              >
+                                {isBusy ? 'Applying…' : 'Apply Changes'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditOpenById((prev) => ({ ...prev, [item.email_id]: false }))}
+                                className="rounded-lg border border-white/20 bg-white/10 hover:bg-white/15 text-white px-3 py-1.5 text-sm font-semibold transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </article>
                     )
                   })
@@ -356,6 +544,21 @@ interface SuggestionItem {
     reason: string
   }
   status: 'pending' | 'accepted' | 'skipped' | string
+}
+
+type SuggestionAction = 'keep' | 'archive' | 'delete' | 'mark_unread'
+
+interface SuggestionOverrideDraft {
+  action: SuggestionAction
+  add_label_ids: Array<string>
+  new_label_name: string
+}
+
+interface SuggestionOverridePayload {
+  action: SuggestionAction
+  add_label_ids: Array<string>
+  new_label_name: string | null
+  reason: string
 }
 
 function formatFrom(from: string): string {
