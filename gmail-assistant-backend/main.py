@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -247,6 +248,132 @@ def _load_treated_email_ids() -> set[str]:
                 treated_ids.add(email_id)
 
     return treated_ids
+
+
+# ------------------------------------------------------------------ #
+#  Learning dashboard                                                  #
+# ------------------------------------------------------------------ #
+
+@app.get("/api/learning/stats")
+async def learning_stats(days: int = 2):
+    if not FEEDBACK_FILE.exists():
+        return {"summary": {}, "daily_accuracy": [], "action_counts": {}, "override_patterns": {}, "top_overridden_senders": []}
+
+    try:
+        days = int(days)
+    except (TypeError, ValueError):
+        days = 2
+    days = max(1, min(days, 30))
+
+    all_entries = []
+    with FEEDBACK_FILE.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                all_entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+    if not all_entries:
+        return {"summary": {}, "daily_accuracy": [], "action_counts": {}, "override_patterns": {}, "top_overridden_senders": []}
+
+    cutoff_day = datetime.now(timezone.utc).date() - timedelta(days=days - 1)
+    filtered = []
+    for entry in all_entries:
+        raw_ts = entry.get("timestamp")
+        try:
+            ts = datetime.fromisoformat(str(raw_ts).replace("Z", "+00:00")) if raw_ts else None
+        except ValueError:
+            ts = None
+        if ts is None:
+            continue
+        if ts.date() >= cutoff_day:
+            filtered.append(entry)
+
+    if not filtered:
+        return {"summary": {}, "daily_accuracy": [], "action_counts": {}, "override_patterns": {}, "top_overridden_senders": []}
+
+    seen: dict[str, dict] = {}
+    for entry in filtered:
+        email_id = entry.get("email_id")
+        if email_id:
+            seen[email_id] = entry
+    unique = list(seen.values())
+
+    total = len(unique)
+    accepted_no_change = sum(
+        1
+        for entry in unique
+        if entry.get("accepted") and entry.get("suggestion", {}).get("action") == entry.get("applied_action", {}).get("action")
+    )
+    accepted_overridden = sum(
+        1
+        for entry in unique
+        if entry.get("accepted") and entry.get("suggestion", {}).get("action") != entry.get("applied_action", {}).get("action")
+    )
+    skipped = sum(1 for entry in unique if not entry.get("accepted"))
+
+    from collections import defaultdict
+
+    daily: dict[str, dict] = defaultdict(lambda: {"total": 0, "matched": 0})
+    for entry in unique:
+        if not entry.get("accepted"):
+            continue
+        date_str = str(entry.get("timestamp", ""))[:10]
+        if not date_str:
+            continue
+        daily[date_str]["total"] += 1
+        if entry.get("suggestion", {}).get("action") == entry.get("applied_action", {}).get("action"):
+            daily[date_str]["matched"] += 1
+
+    daily_accuracy = [
+        {"date": date_str, "accuracy": round(values["matched"] / values["total"] * 100, 1), "count": values["total"]}
+        for date_str, values in sorted(daily.items())
+        if values["total"] > 0
+    ]
+
+    action_counts: dict[str, int] = defaultdict(int)
+    for entry in unique:
+        if entry.get("accepted"):
+            action = entry.get("applied_action", {}).get("action", "unknown")
+            action_counts[action] += 1
+
+    override_patterns: dict[str, int] = defaultdict(int)
+    for entry in unique:
+        if entry.get("accepted") and entry.get("suggestion", {}).get("action") != entry.get("applied_action", {}).get("action"):
+            key = f"{entry['suggestion']['action']} -> {entry['applied_action']['action']}"
+            override_patterns[key] += 1
+
+    sender_overrides: dict[str, int] = defaultdict(int)
+    for entry in unique:
+        if entry.get("accepted") and entry.get("suggestion", {}).get("action") != entry.get("applied_action", {}).get("action"):
+            sender = entry.get("email", {}).get("from", "unknown")
+            if "<" in sender:
+                sender = sender[:sender.index("<")].strip().strip('"')
+            sender_overrides[sender] += 1
+
+    top_overridden = sorted(sender_overrides.items(), key=lambda row: -row[1])[:10]
+
+    return {
+        "summary": {
+            "days": days,
+            "total": total,
+            "accepted_no_change": accepted_no_change,
+            "accepted_overridden": accepted_overridden,
+            "skipped": skipped,
+        },
+        "daily_accuracy": daily_accuracy,
+        "action_counts": dict(action_counts),
+        "override_patterns": dict(override_patterns),
+        "top_overridden_senders": [{"sender": sender, "count": count} for sender, count in top_overridden],
+    }
+
+
+@app.get("/learning")
+async def learning_page():
+    return FileResponse(str(BASE_DIR / "static" / "learning.html"))
 
 
 # ------------------------------------------------------------------ #

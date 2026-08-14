@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Learning Dashboard - Gmail Assistant</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --blue: #1a73e8;
+      --blue-light: #e8f0fe;
+      --green: #188038;
+      --green-light: #e6f4ea;
+      --amber: #f29900;
+      --amber-light: #fef7e0;
+      --red: #d93025;
+      --red-light: #fce8e6;
+      --grey-100: #f1f3f4;
+      --grey-200: #e8eaed;
+      --grey-600: #80868b;
+      --grey-900: #202124;
+      --shadow: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Google Sans", Roboto, Arial, sans-serif; font-size: 14px; color: var(--grey-900); background: #f8f9fa; min-height: 100dvh; }
+    header { background: #fff; border-bottom: 1px solid var(--grey-200); padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 10; }
+    header h1 { font-size: 18px; font-weight: 500; flex: 1; display: flex; align-items: center; gap: 8px; }
+    header h1 svg { color: var(--blue); }
+    header a { font-size: 13px; color: var(--blue); text-decoration: none; }
+    header a:hover { text-decoration: underline; }
+    main { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
+
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; margin-bottom: 28px; }
+    .stat-card { background: #fff; border-radius: 8px; box-shadow: var(--shadow); padding: 18px; text-align: center; }
+    .stat-card .value { font-size: 32px; font-weight: 600; line-height: 1.1; }
+    .stat-card .label { font-size: 12px; color: var(--grey-600); margin-top: 4px; }
+    .stat-card.blue .value { color: var(--blue); }
+    .stat-card.green .value { color: var(--green); }
+    .stat-card.amber .value { color: var(--amber); }
+    .stat-card.red .value { color: var(--red); }
+
+    .accuracy-big { font-size: 42px; font-weight: 700; color: var(--green); }
+
+    .panel { background: #fff; border-radius: 8px; box-shadow: var(--shadow); padding: 20px; margin-bottom: 20px; }
+    .panel h2 { font-size: 15px; font-weight: 500; margin-bottom: 16px; }
+    .chart-wrap { position: relative; height: 240px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--grey-200); color: var(--grey-600); font-weight: 500; }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--grey-100); }
+    tr:last-child td { border-bottom: none; }
+
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .pill-blue { background: var(--blue-light); color: var(--blue); }
+    .pill-green { background: var(--green-light); color: var(--green); }
+    .pill-amber { background: var(--amber-light); color: var(--amber); }
+    .pill-red { background: var(--red-light); color: var(--red); }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+    .empty { text-align: center; padding: 40px; color: var(--grey-600); }
+  </style>
+</head>
+<body>
+<header>
+  <h1>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+    Learning Dashboard
+  </h1>
+  <a href="/">Back to Inbox</a>
+</header>
+
+<main id="app">
+  <p class="empty">Loading...</p>
+</main>
+
+<script>
+const COLOURS = {
+  keep: "#188038",
+  archive: "#1a73e8",
+  delete: "#d93025",
+  mark_unread: "#f29900",
+  unknown: "#80868b",
+}
+const PILL = {
+  keep: "pill-green",
+  archive: "pill-blue",
+  delete: "pill-red",
+  mark_unread: "pill-amber",
+}
+
+async function load() {
+  const res = await fetch(`/api/learning/stats?days=2&t=${Date.now()}`, { cache: "no-store" })
+  const data = await res.json()
+  render(data)
+}
+
+function render({ summary, daily_accuracy, action_counts, override_patterns, top_overridden_senders }) {
+  const total = summary?.total || 0
+  if (total === 0) {
+    document.getElementById("app").innerHTML =
+      `<div class="empty"><p style="font-size:18px">No decisions in the last 2 days</p><p>Accept or skip emails to build up the learning log.</p></div>`
+    return
+  }
+
+  const acceptedTotal = (summary.accepted_no_change || 0) + (summary.accepted_overridden || 0)
+  const matchRate = acceptedTotal > 0
+    ? Math.round(((summary.accepted_no_change || 0) / acceptedTotal) * 100)
+    : 0
+
+  const html = `
+    <div class="stat-grid">
+      <div class="stat-card blue"><div class="value">${total}</div><div class="label">Emails treated (2d)</div></div>
+      <div class="stat-card green"><div class="value">${summary.accepted_no_change || 0}</div><div class="label">Accepted as-is</div></div>
+      <div class="stat-card amber"><div class="value">${summary.accepted_overridden || 0}</div><div class="label">You overrode</div></div>
+      <div class="stat-card red"><div class="value">${summary.skipped || 0}</div><div class="label">Skipped</div></div>
+    </div>
+
+    <div class="panel" style="display:flex;align-items:center;gap:32px;flex-wrap:wrap">
+      <div>
+        <div class="accuracy-big">${matchRate}%</div>
+        <div style="color:var(--grey-600);font-size:13px;margin-top:4px">Current suggestion accuracy</div>
+        <div style="color:var(--grey-600);font-size:12px;margin-top:2px">(accepted without change / accepted total)</div>
+      </div>
+      <div style="flex:1;min-width:220px">
+        <div class="chart-wrap" style="height:180px"><canvas id="accuracy-chart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <h2>Actions actually applied</h2>
+        <div class="chart-wrap"><canvas id="actions-chart"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Override patterns</h2>
+        ${Object.keys(override_patterns || {}).length === 0
+          ? `<p style="color:var(--grey-600);font-size:13px">No overrides in the last 2 days.</p>`
+          : `<table>
+              <thead><tr><th>Suggested -> Applied</th><th>Times</th></tr></thead>
+              <tbody>${Object.entries(override_patterns).sort((a,b)=>b[1]-a[1]).map(([k,v]) => {
+                const [from, to] = k.split(" -> ")
+                return `<tr>
+                  <td><span class="pill ${PILL[from] || ""}">${from}</span> -> <span class="pill ${PILL[to] || ""}">${to}</span></td>
+                  <td><strong>${v}</strong></td>
+                </tr>`
+              }).join("")}</tbody>
+            </table>`
+        }
+      </div>
+    </div>
+
+    ${(top_overridden_senders || []).length > 0 ? `
+      <div class="panel">
+        <h2>Senders most frequently overridden</h2>
+        <table>
+          <thead><tr><th>Sender</th><th>Overrides</th></tr></thead>
+          <tbody>${top_overridden_senders.map(({ sender, count }) =>
+            `<tr><td>${esc(sender)}</td><td><strong>${count}</strong></td></tr>`
+          ).join("")}</tbody>
+        </table>
+      </div>
+    ` : ""}
+  `
+
+  document.getElementById("app").innerHTML = html
+
+  if ((daily_accuracy || []).length > 0) {
+    new Chart(document.getElementById("accuracy-chart"), {
+      type: "line",
+      data: {
+        labels: daily_accuracy.map(d => d.date),
+        datasets: [{
+          label: "Accuracy %",
+          data: daily_accuracy.map(d => d.accuracy),
+          borderColor: "#188038",
+          backgroundColor: "rgba(24,128,56,.1)",
+          fill: true,
+          tension: 0.35,
+          pointRadius: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { y: { min: 0, max: 100, ticks: { callback: v => `${v}%` } } },
+        plugins: { legend: { display: false } },
+      },
+    })
+  } else {
+    document.getElementById("accuracy-chart").parentElement.innerHTML =
+      `<p style="color:var(--grey-600);font-size:13px;padding:20px 0">Need more accepted items to draw an accuracy trend.</p>`
+  }
+
+  const labels = Object.keys(action_counts || {})
+  new Chart(document.getElementById("actions-chart"), {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [{
+        data: labels.map(label => action_counts[label]),
+        backgroundColor: labels.map(label => COLOURS[label] || "#ccc"),
+        borderWidth: 2,
+        borderColor: "#fff",
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "right" } },
+    },
+  })
+}
+
+function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+}
+
+load()
+</script>
+</body>
+</html>

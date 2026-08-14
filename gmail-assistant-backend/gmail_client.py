@@ -260,18 +260,18 @@ class GmailClient:
             add_labels.append(self.ensure_label(new_label_name))
 
         if action == "delete":
+            # Re-applying labels after trashing would pull the message back out of Trash.
             session.post(f"{GMAIL_BASE}/messages/{email_id}/trash").raise_for_status()
-            if add_labels:
-                session.post(
-                    f"{GMAIL_BASE}/messages/{email_id}/modify",
-                    json={"addLabelIds": add_labels, "removeLabelIds": []},
-                ).raise_for_status()
-            return {"trashed": True}
+            return {"action": "delete", "trashed": True}
 
         if action == "archive":
             remove_labels.append("INBOX")
         elif action == "mark_unread":
             add_labels.append("UNREAD")
+
+        # Gmail rejects a request that adds and removes the same label.
+        add_labels = [l for l in dict.fromkeys(add_labels) if l not in remove_labels]
+        remove_labels = list(dict.fromkeys(remove_labels))
 
         if add_labels or remove_labels:
             session.post(

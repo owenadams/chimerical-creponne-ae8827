@@ -4,6 +4,7 @@ import {
   connectGmailAuth,
   getGmailAuthStatus,
   getGmailLabels,
+  getLearningLogUrl,
   getGmailSuggestions,
   processGmailEmails,
   submitGmailFeedback,
@@ -165,6 +166,18 @@ function GmailAssistantPage() {
       setError(err instanceof Error ? err.message : 'Email analysis failed')
     } finally {
       setProcessing(false)
+    }
+  }
+
+  async function handleOpenLearningLog() {
+    setError('')
+    try {
+      const result = await getLearningLogUrl()
+      const dashboardUrl = new URL(result.url)
+      dashboardUrl.searchParams.set('t', Date.now().toString())
+      window.open(dashboardUrl.toString(), '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to open learning log')
     }
   }
 
@@ -343,6 +356,12 @@ function GmailAssistantPage() {
                 >
                   Retry Connection
                 </button>
+                <button
+                  onClick={handleOpenLearningLog}
+                  className="border border-cyan-300/35 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-100 font-semibold px-4 py-2.5 rounded-lg transition-all"
+                >
+                  Learning Log
+                </button>
               </div>
             </div>
           ) : (
@@ -352,13 +371,21 @@ function GmailAssistantPage() {
                   <p className="text-white/80 text-sm">
                     {counts.pending} pending · {counts.accepted} accepted · {counts.skipped} skipped
                   </p>
-                  <button
-                    onClick={handleAnalyze}
-                    disabled={processing}
-                    className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-all"
-                  >
-                    {processing ? 'Analyzing…' : 'Analyze Emails'}
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={handleOpenLearningLog}
+                      className="border border-cyan-300/35 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-100 font-semibold px-4 py-2 rounded-lg transition-all"
+                    >
+                      Learning Log
+                    </button>
+                    <button
+                      onClick={handleAnalyze}
+                      disabled={processing}
+                      className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg transition-all"
+                    >
+                      {processing ? 'Analyzing…' : 'Analyze Emails'}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3">
                   {(['all', 'pending', 'accepted', 'skipped'] as const).map((value) => (

@@ -87,3 +87,8 @@ export const submitGmailFeedback = createServerFn({ method: 'POST' })
       body: JSON.stringify(data),
     }) as Promise<{ status: string }>
   })
+
+export const getLearningLogUrl = createServerFn({ method: 'GET' }).handler(async () => {
+  const url = new URL('learning', getAssistantBaseUrl())
+  return { url: url.toString() }
+})
