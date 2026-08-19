@@ -98,7 +98,8 @@ async function load() {
   render(data)
 }
 
-function render({ summary, daily_accuracy, action_counts, override_patterns, top_overridden_senders }) {
+function render({ summary, daily_accuracy, action_counts, override_patterns, top_overridden_senders, learned_rules }) {
+  learned_rules = learned_rules || []
   const total = summary?.total || 0
   if (total === 0) {
     document.getElementById("app").innerHTML =
@@ -153,6 +154,24 @@ function render({ summary, daily_accuracy, action_counts, override_patterns, top
         }
       </div>
     </div>
+
+    ${learned_rules.length > 0 ? `
+      <div class="panel">
+        <h2>Rules learned from your decisions</h2>
+        <p style="color:var(--grey-600);font-size:13px;margin:-8px 0 12px">These rules are applied automatically to new emails.</p>
+        <table>
+          <thead><tr><th>Sender / domain</th><th>Action</th><th>Decisions</th><th>Consistency</th></tr></thead>
+          <tbody>${learned_rules.map(rule => `
+            <tr>
+              <td>${esc(rule.scope === "sender" ? rule.target : "@" + rule.target)}</td>
+              <td><span class="pill ${PILL[rule.action] || ""}">${rule.action}</span></td>
+              <td><strong>${rule.decisions}</strong></td>
+              <td>${rule.confidence}%</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    ` : ""}
 
     ${(top_overridden_senders || []).length > 0 ? `
       <div class="panel">

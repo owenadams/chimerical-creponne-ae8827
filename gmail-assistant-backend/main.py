@@ -257,7 +257,7 @@ def _load_treated_email_ids() -> set[str]:
 @app.get("/api/learning/stats")
 async def learning_stats(days: int = 2):
     if not FEEDBACK_FILE.exists():
-        return {"summary": {}, "daily_accuracy": [], "action_counts": {}, "override_patterns": {}, "top_overridden_senders": []}
+        return {"summary": {}, "daily_accuracy": [], "action_counts": {}, "override_patterns": {}, "top_overridden_senders": [], "learned_rules": get_ai().learned_rules()}
 
     try:
         days = int(days)
@@ -277,7 +277,7 @@ async def learning_stats(days: int = 2):
                 continue
 
     if not all_entries:
-        return {"summary": {}, "daily_accuracy": [], "action_counts": {}, "override_patterns": {}, "top_overridden_senders": []}
+        return {"summary": {}, "daily_accuracy": [], "action_counts": {}, "override_patterns": {}, "top_overridden_senders": [], "learned_rules": get_ai().learned_rules()}
 
     cutoff_day = datetime.now(timezone.utc).date() - timedelta(days=days - 1)
     filtered = []
@@ -293,7 +293,7 @@ async def learning_stats(days: int = 2):
             filtered.append(entry)
 
     if not filtered:
-        return {"summary": {}, "daily_accuracy": [], "action_counts": {}, "override_patterns": {}, "top_overridden_senders": []}
+        return {"summary": {}, "daily_accuracy": [], "action_counts": {}, "override_patterns": {}, "top_overridden_senders": [], "learned_rules": get_ai().learned_rules()}
 
     seen: dict[str, dict] = {}
     for entry in filtered:
@@ -368,6 +368,7 @@ async def learning_stats(days: int = 2):
         "action_counts": dict(action_counts),
         "override_patterns": dict(override_patterns),
         "top_overridden_senders": [{"sender": sender, "count": count} for sender, count in top_overridden],
+        "learned_rules": get_ai().learned_rules(),
     }
 
 
