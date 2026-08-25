@@ -140,6 +140,31 @@ function Home() {
           </Link>
         </section>
 
+        {/* Book Recommendations */}
+        <section className="mt-6 bg-white/8 backdrop-blur-sm rounded-2xl border border-white/15 p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Book Recommendations</h2>
+            <span
+              className={`text-xs font-semibold uppercase tracking-wide border rounded-full px-3 py-1 ${ownerStatusClass}`}
+            >
+              {ownerStatusLabel}
+            </span>
+          </div>
+
+          <p className="text-white/70 text-sm sm:text-base mb-5">
+            Search, tier-grade, and track books you've read or want to read — plus AI-powered
+            personalized recommendations from your favorites.
+          </p>
+
+          <Link
+            to="/books"
+            className="group inline-flex items-center gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-violet-950/40 hover:brightness-110 transition-all"
+          >
+            Open Book Recommendations
+            <span className="group-hover:translate-x-0.5 transition-transform" aria-hidden="true">→</span>
+          </Link>
+        </section>
+
         <p className="text-center text-white/30 text-xs mt-12">
           More games on the way.
         </p>

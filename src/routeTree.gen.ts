@@ -12,10 +12,16 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScattergoriesRouteImport } from './routes/scattergories'
 import { Route as OwnerLoginRouteImport } from './routes/owner-login'
 import { Route as GmailAssistantRouteImport } from './routes/gmail-assistant'
+import { Route as BooksRouteImport } from './routes/books'
 import { Route as AlphabetRouteImport } from './routes/alphabet'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BooksIndexRouteImport } from './routes/books/index'
 import { Route as ScattergoriesRoomIdRouteImport } from './routes/scattergories/$roomId'
 import { Route as GameRoomIdRouteImport } from './routes/game/$roomId'
+import { Route as BooksTierBoardRouteImport } from './routes/books/tier-board'
+import { Route as BooksSettingsRouteImport } from './routes/books/settings'
+import { Route as BooksRecommendationsRouteImport } from './routes/books/recommendations'
+import { Route as BooksLibraryRouteImport } from './routes/books/library'
 
 const ScattergoriesRoute = ScattergoriesRouteImport.update({
   id: '/scattergories',
@@ -32,6 +38,11 @@ const GmailAssistantRoute = GmailAssistantRouteImport.update({
   path: '/gmail-assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BooksRoute = BooksRouteImport.update({
+  id: '/books',
+  path: '/books',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AlphabetRoute = AlphabetRouteImport.update({
   id: '/alphabet',
   path: '/alphabet',
@@ -41,6 +52,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const BooksIndexRoute = BooksIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => BooksRoute,
 } as any)
 const ScattergoriesRoomIdRoute = ScattergoriesRoomIdRouteImport.update({
   id: '/$roomId',
@@ -52,15 +68,41 @@ const GameRoomIdRoute = GameRoomIdRouteImport.update({
   path: '/game/$roomId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BooksTierBoardRoute = BooksTierBoardRouteImport.update({
+  id: '/tier-board',
+  path: '/tier-board',
+  getParentRoute: () => BooksRoute,
+} as any)
+const BooksSettingsRoute = BooksSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => BooksRoute,
+} as any)
+const BooksRecommendationsRoute = BooksRecommendationsRouteImport.update({
+  id: '/recommendations',
+  path: '/recommendations',
+  getParentRoute: () => BooksRoute,
+} as any)
+const BooksLibraryRoute = BooksLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => BooksRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alphabet': typeof AlphabetRoute
+  '/books': typeof BooksRouteWithChildren
   '/gmail-assistant': typeof GmailAssistantRoute
   '/owner-login': typeof OwnerLoginRoute
   '/scattergories': typeof ScattergoriesRouteWithChildren
+  '/books/library': typeof BooksLibraryRoute
+  '/books/recommendations': typeof BooksRecommendationsRoute
+  '/books/settings': typeof BooksSettingsRoute
+  '/books/tier-board': typeof BooksTierBoardRoute
   '/game/$roomId': typeof GameRoomIdRoute
   '/scattergories/$roomId': typeof ScattergoriesRoomIdRoute
+  '/books/': typeof BooksIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -68,29 +110,46 @@ export interface FileRoutesByTo {
   '/gmail-assistant': typeof GmailAssistantRoute
   '/owner-login': typeof OwnerLoginRoute
   '/scattergories': typeof ScattergoriesRouteWithChildren
+  '/books/library': typeof BooksLibraryRoute
+  '/books/recommendations': typeof BooksRecommendationsRoute
+  '/books/settings': typeof BooksSettingsRoute
+  '/books/tier-board': typeof BooksTierBoardRoute
   '/game/$roomId': typeof GameRoomIdRoute
   '/scattergories/$roomId': typeof ScattergoriesRoomIdRoute
+  '/books': typeof BooksIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/alphabet': typeof AlphabetRoute
+  '/books': typeof BooksRouteWithChildren
   '/gmail-assistant': typeof GmailAssistantRoute
   '/owner-login': typeof OwnerLoginRoute
   '/scattergories': typeof ScattergoriesRouteWithChildren
+  '/books/library': typeof BooksLibraryRoute
+  '/books/recommendations': typeof BooksRecommendationsRoute
+  '/books/settings': typeof BooksSettingsRoute
+  '/books/tier-board': typeof BooksTierBoardRoute
   '/game/$roomId': typeof GameRoomIdRoute
   '/scattergories/$roomId': typeof ScattergoriesRoomIdRoute
+  '/books/': typeof BooksIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/alphabet'
+    | '/books'
     | '/gmail-assistant'
     | '/owner-login'
     | '/scattergories'
+    | '/books/library'
+    | '/books/recommendations'
+    | '/books/settings'
+    | '/books/tier-board'
     | '/game/$roomId'
     | '/scattergories/$roomId'
+    | '/books/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -98,22 +157,34 @@ export interface FileRouteTypes {
     | '/gmail-assistant'
     | '/owner-login'
     | '/scattergories'
+    | '/books/library'
+    | '/books/recommendations'
+    | '/books/settings'
+    | '/books/tier-board'
     | '/game/$roomId'
     | '/scattergories/$roomId'
+    | '/books'
   id:
     | '__root__'
     | '/'
     | '/alphabet'
+    | '/books'
     | '/gmail-assistant'
     | '/owner-login'
     | '/scattergories'
+    | '/books/library'
+    | '/books/recommendations'
+    | '/books/settings'
+    | '/books/tier-board'
     | '/game/$roomId'
     | '/scattergories/$roomId'
+    | '/books/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlphabetRoute: typeof AlphabetRoute
+  BooksRoute: typeof BooksRouteWithChildren
   GmailAssistantRoute: typeof GmailAssistantRoute
   OwnerLoginRoute: typeof OwnerLoginRoute
   ScattergoriesRoute: typeof ScattergoriesRouteWithChildren
@@ -143,6 +214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GmailAssistantRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/books': {
+      id: '/books'
+      path: '/books'
+      fullPath: '/books'
+      preLoaderRoute: typeof BooksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/alphabet': {
       id: '/alphabet'
       path: '/alphabet'
@@ -156,6 +234,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/books/': {
+      id: '/books/'
+      path: '/'
+      fullPath: '/books/'
+      preLoaderRoute: typeof BooksIndexRouteImport
+      parentRoute: typeof BooksRoute
     }
     '/scattergories/$roomId': {
       id: '/scattergories/$roomId'
@@ -171,8 +256,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameRoomIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/books/tier-board': {
+      id: '/books/tier-board'
+      path: '/tier-board'
+      fullPath: '/books/tier-board'
+      preLoaderRoute: typeof BooksTierBoardRouteImport
+      parentRoute: typeof BooksRoute
+    }
+    '/books/settings': {
+      id: '/books/settings'
+      path: '/settings'
+      fullPath: '/books/settings'
+      preLoaderRoute: typeof BooksSettingsRouteImport
+      parentRoute: typeof BooksRoute
+    }
+    '/books/recommendations': {
+      id: '/books/recommendations'
+      path: '/recommendations'
+      fullPath: '/books/recommendations'
+      preLoaderRoute: typeof BooksRecommendationsRouteImport
+      parentRoute: typeof BooksRoute
+    }
+    '/books/library': {
+      id: '/books/library'
+      path: '/library'
+      fullPath: '/books/library'
+      preLoaderRoute: typeof BooksLibraryRouteImport
+      parentRoute: typeof BooksRoute
+    }
   }
 }
+
+interface BooksRouteChildren {
+  BooksLibraryRoute: typeof BooksLibraryRoute
+  BooksRecommendationsRoute: typeof BooksRecommendationsRoute
+  BooksSettingsRoute: typeof BooksSettingsRoute
+  BooksTierBoardRoute: typeof BooksTierBoardRoute
+  BooksIndexRoute: typeof BooksIndexRoute
+}
+
+const BooksRouteChildren: BooksRouteChildren = {
+  BooksLibraryRoute: BooksLibraryRoute,
+  BooksRecommendationsRoute: BooksRecommendationsRoute,
+  BooksSettingsRoute: BooksSettingsRoute,
+  BooksTierBoardRoute: BooksTierBoardRoute,
+  BooksIndexRoute: BooksIndexRoute,
+}
+
+const BooksRouteWithChildren = BooksRoute._addFileChildren(BooksRouteChildren)
 
 interface ScattergoriesRouteChildren {
   ScattergoriesRoomIdRoute: typeof ScattergoriesRoomIdRoute
@@ -189,6 +320,7 @@ const ScattergoriesRouteWithChildren = ScattergoriesRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlphabetRoute: AlphabetRoute,
+  BooksRoute: BooksRouteWithChildren,
   GmailAssistantRoute: GmailAssistantRoute,
   OwnerLoginRoute: OwnerLoginRoute,
   ScattergoriesRoute: ScattergoriesRouteWithChildren,

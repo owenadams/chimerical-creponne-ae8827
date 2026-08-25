@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4338ca"/>
+      <stop offset="100%" stop-color="#7e22ce"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- simple open-book glyph, drawn with plain shapes so it renders without emoji font support -->
+  <path d="M256 168 C226 148 176 138 132 140 C124 140 118 146 118 154 L118 338 C118 346 124 352 132 352 C176 350 226 360 256 380 Z" fill="#f5f3ff"/>
+  <path d="M256 168 C286 148 336 138 380 140 C388 140 394 146 394 154 L394 338 C394 346 388 352 380 352 C336 350 286 360 256 380 Z" fill="#ede9fe"/>
+  <rect x="252" y="168" width="8" height="212" fill="#c4b5fd"/>
+</svg>
