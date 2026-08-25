@@ -1,12 +1,18 @@
-import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, redirect, useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
+import { z } from 'zod'
 import { getOwnerAccess, loginOwner } from '@/server/owner-auth.functions'
 
+const ownerLoginSearchSchema = z.object({
+  redirect: z.string().optional(),
+})
+
 export const Route = createFileRoute('/owner-login')({
-  beforeLoad: async () => {
+  validateSearch: ownerLoginSearchSchema,
+  beforeLoad: async ({ search }) => {
     const auth = await getOwnerAccess()
     if (auth.authenticated) {
-      throw redirect({ to: '/gmail-assistant' })
+      throw redirect({ to: search.redirect ?? '/gmail-assistant' })
     }
   },
   component: OwnerLoginPage,
@@ -14,6 +20,7 @@ export const Route = createFileRoute('/owner-login')({
 
 function OwnerLoginPage() {
   const navigate = useNavigate()
+  const { redirect: redirectTo } = useSearch({ from: '/owner-login' })
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -26,7 +33,7 @@ function OwnerLoginPage() {
     setError('')
     try {
       await loginOwner({ data: { password } })
-      navigate({ to: '/gmail-assistant' })
+      navigate({ to: redirectTo ?? '/gmail-assistant' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
       setSubmitting(false)
@@ -47,9 +54,7 @@ function OwnerLoginPage() {
           <div className="text-center mb-6">
             <div className="text-5xl mb-3">🔒</div>
             <h1 className="text-3xl font-black text-white tracking-tight">Owner Access</h1>
-            <p className="text-white/65 mt-2 text-sm">
-              Enter your password to open the Gmail Assistant section.
-            </p>
+            <p className="text-white/65 mt-2 text-sm">Enter your password to unlock this section.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -72,7 +77,7 @@ function OwnerLoginPage() {
               disabled={submitting || !password.trim()}
               className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/50"
             >
-              {submitting ? 'Checking…' : 'Unlock Gmail Assistant'}
+              {submitting ? 'Checking…' : 'Unlock'}
             </button>
           </form>
         </div>

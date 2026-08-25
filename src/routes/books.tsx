@@ -5,10 +5,10 @@ import { useBooksStore } from '@/lib/books/store/booksStore'
 import { useSettingsStore } from '@/lib/books/store/settingsStore'
 
 export const Route = createFileRoute('/books')({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const auth = await getOwnerAccess()
     if (!auth.authenticated) {
-      throw redirect({ to: '/owner-login' })
+      throw redirect({ to: '/owner-login', search: { redirect: location.href } })
     }
   },
   component: BooksLayout,

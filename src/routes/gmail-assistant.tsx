@@ -12,10 +12,10 @@ import {
 import { getOwnerAccess, logoutOwner } from '@/server/owner-auth.functions'
 
 export const Route = createFileRoute('/gmail-assistant')({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const auth = await getOwnerAccess()
     if (!auth.authenticated) {
-      throw redirect({ to: '/owner-login' })
+      throw redirect({ to: '/owner-login', search: { redirect: location.href } })
     }
   },
   component: GmailAssistantPage,

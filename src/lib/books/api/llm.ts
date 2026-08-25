@@ -92,9 +92,24 @@ export async function requestRecommendations(
   }
 
   // Not every OpenAI-compatible provider supports response_format; retry without it if rejected.
-  let res = await callChat(true)
-  if (!res.ok && res.status === 400) {
-    res = await callChat(false)
+  let res: Response
+  try {
+    res = await callChat(true)
+    if (!res.ok && res.status === 400) {
+      res = await callChat(false)
+    }
+  } catch {
+    // A network-level failure (not an HTTP error status) almost always means the browser
+    // couldn't even reach the endpoint — most commonly a local Ollama server that isn't
+    // running, or one that's running but hasn't allow-listed this site's origin via CORS.
+    const isLocalhost = /localhost|127\.0\.0\.1/.test(settings.baseUrl)
+    throw new Error(
+      isLocalhost
+        ? `Could not reach ${settings.baseUrl}. Make sure Ollama (or your local server) is running, ` +
+          `and that it allows requests from this site — for Ollama, set the OLLAMA_ORIGINS ` +
+          `environment variable to include this site's URL, then restart it.`
+        : `Could not reach ${settings.baseUrl}. Check the base URL in Settings and your network connection.`,
+    )
   }
   if (!res.ok) {
     throw new Error(`LLM request failed: ${res.status} ${res.statusText}`)
