@@ -101,13 +101,15 @@ export async function requestRecommendations(
   } catch {
     // A network-level failure (not an HTTP error status) almost always means the browser
     // couldn't even reach the endpoint — most commonly a local Ollama server that isn't
-    // running, or one that's running but hasn't allow-listed this site's origin via CORS.
+    // running, isn't reachable from this device, or hasn't allow-listed this site's origin via CORS.
     const isLocalhost = /localhost|127\.0\.0\.1/.test(settings.baseUrl)
     throw new Error(
       isLocalhost
-        ? `Could not reach ${settings.baseUrl}. Make sure Ollama (or your local server) is running, ` +
-          `and that it allows requests from this site — for Ollama, set the OLLAMA_ORIGINS ` +
-          `environment variable to include this site's URL, then restart it.`
+        ? `Could not reach ${settings.baseUrl}. "localhost" only works on the same device that is \
+running Ollama — if you're on a different device (e.g. your phone), switch to a cloud provider \
+like OpenAI or Gemini in Settings instead. If you are on the right device, make sure Ollama is \
+running and that it allows requests from this site — for Ollama, set the OLLAMA_ORIGINS \
+environment variable to include this site's URL, then restart it.`
         : `Could not reach ${settings.baseUrl}. Check the base URL in Settings and your network connection.`,
     )
   }
