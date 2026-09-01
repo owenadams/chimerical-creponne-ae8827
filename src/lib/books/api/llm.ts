@@ -121,20 +121,19 @@ environment variable to include this site's URL, then restart it.`
     )
   }
   if (!res.ok) {
-    const isGroq = settings.baseUrl.includes('groq.com')
-    let errorMsg = `LLM request failed: ${res.status} ${res.statusText}`
-    
-    if (res.status === 400) {
-      if (isGroq) {
-        errorMsg += ` (Groq 400 error — check that your API key is valid and you've signed into console.groq.com to activate it)`
-      }
-    } else if (res.status === 401) {
-      errorMsg += ` (Invalid API key — check Settings)`
-    } else if (res.status === 429) {
-      errorMsg += ` (Rate limited — too many requests)`
-    }
-    
-    throw new Error(errorMsg)
+    // Providers put the actual reason (invalid model, decommissioned model, bad key, etc.)
+    // in the JSON body — surface that instead of just the generic HTTP status.
+    const providerMessage: string | undefined = await res
+      .clone()
+      .json()
+      .then((body) => body?.error?.message)
+      .catch(() => undefined)
+
+    throw new Error(
+      providerMessage
+        ? `LLM request failed: ${res.status} — ${providerMessage}`
+        : `LLM request failed: ${res.status} ${res.statusText}`,
+    )
   }
 
   const data = await res.json()

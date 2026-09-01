@@ -17,7 +17,7 @@ const PRESETS: { label: string; description: string; settings: LLMSettings }[] =
   {
     label: 'Groq (Free Tier)',
     description: '~9k free requests/month. Get a free API key at console.groq.com.',
-    settings: { baseUrl: 'https://api.groq.com/openai/v1', apiKey: '', model: 'mixtral-8x7b-32768' },
+    settings: { baseUrl: 'https://api.groq.com/openai/v1', apiKey: '', model: 'llama-3.3-70b-versatile' },
   },
   {
     label: 'OpenAI',
