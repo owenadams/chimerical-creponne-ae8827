@@ -76,18 +76,25 @@ export async function requestRecommendations(
   const endpoint = `${settings.baseUrl.replace(/\/$/, '')}/chat/completions`
 
   async function callChat(useJsonMode: boolean) {
+    const body: Record<string, unknown> = {
+      model: settings.model,
+      temperature: 0.8,
+      messages,
+      max_tokens: 1024, // Groq requires max_tokens; Ollama/OpenAI ignore it safely
+    }
+
+    // Only try JSON mode if explicitly requested (Groq may not support response_format)
+    if (useJsonMode) {
+      body.response_format = { type: 'json_object' }
+    }
+
     return fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${settings.apiKey}`,
       },
-      body: JSON.stringify({
-        model: settings.model,
-        temperature: 0.8,
-        ...(useJsonMode ? { response_format: { type: 'json_object' } } : {}),
-        messages,
-      }),
+      body: JSON.stringify(body),
     })
   }
 
@@ -114,7 +121,20 @@ environment variable to include this site's URL, then restart it.`
     )
   }
   if (!res.ok) {
-    throw new Error(`LLM request failed: ${res.status} ${res.statusText}`)
+    const isGroq = settings.baseUrl.includes('groq.com')
+    let errorMsg = `LLM request failed: ${res.status} ${res.statusText}`
+    
+    if (res.status === 400) {
+      if (isGroq) {
+        errorMsg += ` (Groq 400 error — check that your API key is valid and you've signed into console.groq.com to activate it)`
+      }
+    } else if (res.status === 401) {
+      errorMsg += ` (Invalid API key — check Settings)`
+    } else if (res.status === 429) {
+      errorMsg += ` (Rate limited — too many requests)`
+    }
+    
+    throw new Error(errorMsg)
   }
 
   const data = await res.json()
