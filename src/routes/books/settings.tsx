@@ -15,6 +15,11 @@ const PRESETS: { label: string; description: string; settings: LLMSettings }[] =
     settings: { baseUrl: 'http://localhost:11434/v1', apiKey: 'ollama', model: 'llama3.2' },
   },
   {
+    label: 'Groq (Free Tier)',
+    description: '~9k free requests/month. Get a free API key at console.groq.com.',
+    settings: { baseUrl: 'https://api.groq.com/openai/v1', apiKey: '', model: 'mixtral-8x7b-32768' },
+  },
+  {
     label: 'OpenAI',
     description: 'Paste your own OpenAI API key below after selecting.',
     settings: { baseUrl: 'https://api.openai.com/v1', apiKey: '', model: 'gpt-4o-mini' },
