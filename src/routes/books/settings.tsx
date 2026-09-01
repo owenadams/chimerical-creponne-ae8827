@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Check, Eye, EyeOff } from 'lucide-react'
 import { useSettingsStore } from '@/lib/books/store/settingsStore'
 import type { LLMSettings } from '@/lib/books/store/settingsStore'
@@ -42,9 +42,31 @@ function SettingsPage() {
   const [form, setForm] = useState<LLMSettings>(llm)
   const [showKey, setShowKey] = useState(false)
   const [saved, setSaved] = useState(false)
+  const editedRef = useRef(false)
 
+  // Rehydration from localStorage happens asynchronously in the parent layout, so on a direct
+  // navigation to this page `llm` can still be the default when this component first renders.
+  // Sync the form once that finishes, as long as the user hasn't started typing yet.
+  useEffect(() => {
+    if (!editedRef.current) setForm(llm)
+  }, [llm])
+
+  // Persist every keystroke immediately so navigating away (or a mobile keyboard covering
+  // the Save button) can never lose changes — the button below is just a visual confirmation.
   function update<K extends keyof LLMSettings>(key: K, value: LLMSettings[K]) {
-    setForm((f) => ({ ...f, [key]: value }))
+    editedRef.current = true
+    setForm((f) => {
+      const next = { ...f, [key]: value }
+      setLLMSettings(next)
+      return next
+    })
+    setSaved(false)
+  }
+
+  function applyPreset(settings: LLMSettings) {
+    editedRef.current = true
+    setForm(settings)
+    setLLMSettings(settings)
     setSaved(false)
   }
 
@@ -68,7 +90,7 @@ function SettingsPage() {
           <button
             key={preset.label}
             type="button"
-            onClick={() => setForm(preset.settings)}
+            onClick={() => applyPreset(preset.settings)}
             className="rounded-lg border border-slate-800 bg-slate-900 p-3 text-left transition-colors hover:border-slate-600"
           >
             <p className="text-sm font-medium text-slate-100">{preset.label}</p>
