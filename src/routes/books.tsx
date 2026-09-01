@@ -1,16 +1,9 @@
-import { createFileRoute, Link, Outlet, redirect, useLocation } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, useLocation } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { getOwnerAccess } from '@/server/owner-auth.functions'
 import { useBooksStore } from '@/lib/books/store/booksStore'
 import { useSettingsStore } from '@/lib/books/store/settingsStore'
 
 export const Route = createFileRoute('/books')({
-  beforeLoad: async ({ location }) => {
-    const auth = await getOwnerAccess()
-    if (!auth.authenticated) {
-      throw redirect({ to: '/owner-login', search: { redirect: location.href } })
-    }
-  },
   component: BooksLayout,
 })
 
