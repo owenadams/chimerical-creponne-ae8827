@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Check, Eye, EyeOff } from 'lucide-react'
+import { Check, Eye, EyeOff, RefreshCw } from 'lucide-react'
+import { listModels } from '@/lib/books/api/llm'
 import { useSettingsStore } from '@/lib/books/store/settingsStore'
 import type { LLMSettings } from '@/lib/books/store/settingsStore'
 
@@ -43,6 +44,9 @@ function SettingsPage() {
   const [showKey, setShowKey] = useState(false)
   const [saved, setSaved] = useState(false)
   const editedRef = useRef(false)
+  const [modelOptions, setModelOptions] = useState<string[]>([])
+  const [modelsError, setModelsError] = useState<string | null>(null)
+  const [loadingModels, setLoadingModels] = useState(false)
 
   // Rehydration from localStorage happens asynchronously in the parent layout, so on a direct
   // navigation to this page `llm` can still be the default when this component first renders.
@@ -74,6 +78,22 @@ function SettingsPage() {
     e.preventDefault()
     setLLMSettings(form)
     setSaved(true)
+  }
+
+  // Provider model catalogs (especially Groq's) deprecate model IDs frequently, so let users
+  // pull the current live list instead of relying on a hardcoded preset that can go stale.
+  async function handleFetchModels() {
+    setLoadingModels(true)
+    setModelsError(null)
+    try {
+      const ids = await listModels(form)
+      setModelOptions(ids)
+      if (ids.length && !ids.includes(form.model)) update('model', ids[0])
+    } catch (err) {
+      setModelsError(err instanceof Error ? err.message : 'Could not fetch models')
+    } finally {
+      setLoadingModels(false)
+    }
   }
 
   return (
@@ -140,17 +160,44 @@ function SettingsPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-slate-400" htmlFor="model">
-            Model
-          </label>
-          <input
-            id="model"
-            type="text"
-            value={form.model}
-            onChange={(e) => update('model', e.target.value)}
-            placeholder="llama3.2"
-            className="w-full rounded-md border border-slate-800 bg-slate-950 p-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-slate-600 focus:outline-none"
-          />
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="block text-xs font-medium text-slate-400" htmlFor="model">
+              Model
+            </label>
+            <button
+              type="button"
+              onClick={handleFetchModels}
+              disabled={loadingModels || !form.baseUrl}
+              className="flex items-center gap-1 text-xs font-medium text-violet-400 hover:text-violet-300 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3 w-3 ${loadingModels ? 'animate-spin' : ''}`} />
+              {loadingModels ? 'Fetching…' : 'Fetch available models'}
+            </button>
+          </div>
+          {modelOptions.length > 0 ? (
+            <select
+              id="model"
+              value={form.model}
+              onChange={(e) => update('model', e.target.value)}
+              className="w-full rounded-md border border-slate-800 bg-slate-950 p-2 text-sm text-slate-100 focus:border-slate-600 focus:outline-none"
+            >
+              {modelOptions.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              id="model"
+              type="text"
+              value={form.model}
+              onChange={(e) => update('model', e.target.value)}
+              placeholder="llama3.2"
+              className="w-full rounded-md border border-slate-800 bg-slate-950 p-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-slate-600 focus:outline-none"
+            />
+          )}
+          {modelsError && <p className="mt-1 text-xs text-rose-400">{modelsError}</p>}
         </div>
 
         <button

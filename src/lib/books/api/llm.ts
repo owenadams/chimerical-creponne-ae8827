@@ -62,6 +62,20 @@ function extractJson(content: string): string {
   return content.trim()
 }
 
+/** Fetch the list of model IDs the configured endpoint actually supports right now.
+ *  Provider model catalogs (especially Groq's) change and deprecate frequently, so this
+ *  is more reliable than any hardcoded preset model name. */
+export async function listModels(settings: Pick<LLMSettings, 'baseUrl' | 'apiKey'>): Promise<string[]> {
+  const endpoint = `${settings.baseUrl.replace(/\/$/, '')}/models`
+  const res = await fetch(endpoint, {
+    headers: { Authorization: `Bearer ${settings.apiKey}` },
+  })
+  if (!res.ok) throw new Error(`Could not list models: ${res.status} ${res.statusText}`)
+  const data = await res.json()
+  const ids: string[] = (data.data ?? []).map((m: { id: string }) => m.id)
+  return ids.sort()
+}
+
 /** Request personalized recommendations from a generic OpenAI-compatible chat endpoint
  *  (works with local Ollama, OpenAI, or any compatible gateway/proxy). Considers both
  *  S/A tier favorites and the want-to-read queue (treated as an agreement signal). */
