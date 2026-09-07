@@ -25,7 +25,7 @@ function describeBook(book: TrackedBook): string {
   const parts = [`"${book.title}" by ${book.authors.join(', ') || 'Unknown'} (tier ${book.tier.toUpperCase()})`]
   if (book.genres.length) parts.push(`genres: ${book.genres.join(', ')}`)
   if (book.tropes.length) parts.push(`favorite tropes: ${book.tropes.join(', ')}`)
-  if (book.notes) parts.push(`notes: ${book.notes}`)
+  if (book.notes) parts.push(`notes: ${book.notes.slice(0, 240)}`)
   return parts.join(' — ')
 }
 
@@ -39,9 +39,9 @@ function buildUserPrompt(books: TrackedBook[]): string {
   const favorites = books.filter((b) => b.status === 'read' && (b.tier === 'S' || b.tier === 'A'))
   const wantToRead = books.filter((b) => b.status === 'want_to_read')
 
-  const favoritesList = favorites.map((b) => `- ${describeBook(b)}`).join('\n')
+  const favoritesList = favorites.map((b) => `- ${describeBook(b)}`).join('\n').slice(0, 9000)
   const wantToReadSection = wantToRead.length
-    ? `\n\nI also already want to read these (I agree with recommending books like these, so don't suggest them again):\n${wantToRead.map((b) => `- ${describeWantToRead(b)}`).join('\n')}`
+    ? `\n\nI also already want to read these (I agree with recommending books like these, so don't suggest them again):\n${wantToRead.map((b) => `- ${describeWantToRead(b)}`).join('\n').slice(0, 3000)}`
     : ''
 
   return `Here are my favorite (S and A tier) books:\n${favoritesList}${wantToReadSection}\n\nRecommend 3-5 new books for me that I don't already have listed above.`
